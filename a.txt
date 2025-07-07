@@ -1,0 +1,456 @@
+// lib/features/word_card/view/word_card_screen.dart
+
+import 'dart:math';
+import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
+import 'package:just_audio/just_audio.dart';
+import 'package:translator/translator.dart';
+
+// ...（WordCategory class は変更なし）
+
+// ...（_WordCardScreenState class の前半は変更なし）
+
+  @override
+  void initState() {
+    super.initState();
+    _discoverCategoriesAndLoadFirst();
+  }
+ 
+// ...（disposeメソッドは変更なし）
+
+  Future<void> _discoverCategoriesAndLoadFirst() async {
+    // AssetManifest を使ってアセット一覧を安全に取得します。
+    final assetManifest = await AssetManifest.loadFromAssetBundle(rootBundle);
+    
+    // アセット一覧から対象のjsonファイルパスを抽出します。
+    final jsonPaths = assetManifest.listAssets()
+        .where((path) => path.startsWith('assets/data/') && path.endsWith('.json'))
+        .toList();
+
+    List<WordCategory> discoveredCategories = [];
+    for (var path in jsonPaths) {
+      List<String> parts = path
+          .replaceAll('assets/data/', '')
+          .replaceAll('.json', '')
+          .split('/');
+      String indent = '  ' * (parts.length - 1);
+      String displayName = parts.last.replaceAll('_', ' ');
+      displayName = displayName[0].toUpperCase() + displayName.substring(1);
+      String finalName = indent + displayName;
+      discoveredCategories.add(WordCategory(name: finalName, filePath: path));
+    }
+    
+    // 以降の setState やエラーハンドリングの処理は変更ありません。
+    setState(() {
+      _categories = discoveredCategories;
+      if (_categories.isNotEmpty) {
+        _selectedCategory = _categories.first;
+      }
+    });
+
+    if (_selectedCategory != null) {
+      await _loadWordListFromJson();
+      if (_wordList.isNotEmpty) {
+        await _fetchNewWord();
+      }
+    } else {
+      setState(() {
+        _isLoading = false;
+        _error = "単語ファイルが見つかりませんでした。pubspec.yamlを確認してください。";
+      });
+    }
+  }
+
+// ...（以降のコードは変更なし）assets/data
+├── animals
+│   ├── ant_anatomy.json
+│   ├── birds_antarctica.json
+│   ├── birds_north_america.json
+│   ├── cats.json
+│   ├── cephalopod_anatomy.json
+│   ├── collateral_adjectives.json
+│   ├── common.json
+│   ├── dinosaurs.json
+│   ├── dog_names.json
+│   ├── dogs-en-de.json
+│   ├── dogs.json
+│   ├── donkeys.json
+│   ├── horses.json
+│   ├── mainly-ducks.json
+│   ├── ponies.json
+│   └── rabbits.json
+├── archetypes
+│   ├── artifact.json
+│   ├── character.json
+│   ├── event.json
+│   └── setting.json
+├── architecture
+│   ├── passages.json
+│   └── rooms.json
+├── art
+│   └── isms.json
+├── books
+│   ├── academic_subjects.json
+│   └── bestsellers.json
+├── colors
+│   ├── crayola.json
+│   ├── dulux.json
+│   ├── fictional.json
+│   ├── google_material_colors.json
+│   ├── paints.json
+│   ├── palettes.json
+│   ├── web_colors.json
+│   ├── wikipedia.json
+│   └── xkcd.json
+├── corporations
+│   ├── cars.json
+│   ├── charities.json
+│   ├── djia.json
+│   ├── fortune500.json
+│   ├── industries.json
+│   ├── nasdaq.json
+│   └── newspapers.json
+├── divination
+│   ├── hexagrams.json
+│   ├── tarot_interpretations.json
+│   └── zodiac.json
+├── film-tv
+│   ├── extended-netflix-categories.json
+│   ├── game-of-thrones-houses.json
+│   ├── iab_categories.json
+│   ├── look-around-you-shakespeare.json
+│   ├── netflix-categories.json
+│   ├── popular-movies.json
+│   ├── tv_shows.json
+│   └── Westworld_quotes.json
+├── foods
+│   ├── apple_cultivars.json
+│   ├── bad_beers.json
+│   ├── beer_categories.json
+│   ├── beer_styles.json
+│   ├── breads_and_pastries.json
+│   ├── combine.json
+│   ├── condiments.json
+│   ├── curds.json
+│   ├── fruits.json
+│   ├── herbs_n_spices.json
+│   ├── hot_peppers.json
+│   ├── iba_cocktails.json
+│   ├── menuItems.json
+│   ├── pizzaToppings.json
+│   ├── sandwiches.json
+│   ├── sausages.json
+│   ├── scotch_whiskey.json
+│   ├── tea.json
+│   ├── vegetable_cooking_times.json
+│   ├── vegetables.json
+│   ├── verbs.json
+│   └── wine_descriptions.json
+├── games
+│   ├── bannedGames
+│   │   ├── argentina
+│   │   │   └── bannedList.json
+│   │   ├── brazil
+│   │   │   └── bannedList.json
+│   │   ├── china
+│   │   │   └── bannedList.json
+│   │   ├── denmark
+│   │   │   └── bannedList.json
+│   │   ├── germany
+│   │   │   └── bannedList.json
+│   │   └── saudi_arabia
+│   │       └── bannedList.json
+│   ├── board_games.json
+│   ├── cluedo.json
+│   ├── dark_souls_iii_messages.json
+│   ├── jeopardy_questions.json
+│   ├── League_of_legends_champion_names.json
+│   ├── pokemon.json
+│   ├── rpg
+│   │   ├── rpg_designers.json
+│   │   ├── rpg_games.json
+│   │   └── rpg_settings.json
+│   ├── scrabble.json
+│   ├── street_fighter_ii.json
+│   ├── trivial_pursuit.json
+│   ├── wrestling_moves.json
+│   └── zelda.json
+├── geography
+│   ├── anthropogenic_features.json
+│   ├── canada_provinces_and_territories.json
+│   ├── canadian_municipalities.json
+│   ├── countries_with_capitals.json
+│   ├── countries.json
+│   ├── english_towns_cities.json
+│   ├── environmental_hazards.json
+│   ├── geographic_features.json
+│   ├── japanese_prefectures.json
+│   ├── london_underground_stations.json
+│   ├── nationalities.json
+│   ├── norwegian_cities.json
+│   ├── nyc_neighborhood_zips.json
+│   ├── oceans.json
+│   ├── rivers.json
+│   ├── sf_neighborhoods.json
+│   ├── us_airport_codes.json
+│   ├── us_cities.json
+│   ├── us_counties.json
+│   ├── us_metropolitan_areas.json
+│   ├── us_state_capitals.json
+│   ├── venues.json
+│   └── winds.json
+├── governments
+│   ├── governmentForms.json
+│   ├── mass-surveillance-project-names.json
+│   ├── nsa_projects.json
+│   ├── uk_political_parties.json
+│   ├── us_federal_agencies.json
+│   └── us_mil_operations.json
+├── humans
+│   ├── 2016_us_presidential_candidates.json
+│   ├── atus_activities.json
+│   ├── authors.json
+│   ├── bodyParts.json
+│   ├── britishActors.json
+│   ├── celebrities.json
+│   ├── descriptions.json
+│   ├── englishHonorifics.json
+│   ├── familyRelations.json
+│   ├── famousDuos.json
+│   ├── firstNames.json
+│   ├── genders.json
+│   ├── human_universals.json
+│   ├── lastNames.json
+│   ├── moods.json
+│   ├── neutralNames.json
+│   ├── norwayFirstNamesBoys.json
+│   ├── norwayFirstNamesGirls.json
+│   ├── norwayLastNames.json
+│   ├── obsolete-occupations.json
+│   ├── occupations.json
+│   ├── prefixes.json
+│   ├── richpeople.json
+│   ├── scientists.json
+│   ├── spanishFirstNames.json
+│   ├── spanishLastNames.json
+│   ├── spinalTapDrummers.json
+│   ├── suffixes.json
+│   ├── thirdPersonPronouns.json
+│   ├── tolkienCharacterNames.json
+│   ├── us_presidents.json
+│   └── wrestlers.json
+├── instructions
+│   ├── burroughsinstructionset.json
+│   └── laundry_care.json
+├── materials
+│   ├── abridged-body-fluids.json
+│   ├── building-materials.json
+│   ├── carbon-allotropes.json
+│   ├── decorative-stones.json
+│   ├── fabrics.json
+│   ├── fibers.json
+│   ├── fictional-materials.json
+│   ├── gemstones.json
+│   ├── layperson-metals.json
+│   ├── metals.json
+│   ├── natural-materials.json
+│   ├── packaging.json
+│   ├── plastic-brands.json
+│   ├── sculpture-materials.json
+│   └── technical-fabrics.json
+├── mathematics
+│   ├── fibonnaciSequence.json
+│   ├── primes_binary.json
+│   ├── primes.json
+│   └── trigonometry.json
+├── medicine
+│   ├── cancer.json
+│   ├── diagnoses.json
+│   ├── diseases.json
+│   ├── drugNameStems.json
+│   ├── drugs.json
+│   ├── hospitals.json
+│   ├── infectious_diseases.json
+│   └── symptoms.json
+├── music
+│   ├── a_list_of_guitar_manufacturers.json
+│   ├── bands_that_have_opened_for_tool.json
+│   ├── female_classical_guitarists.json
+│   ├── genres.json
+│   ├── hamilton_musical_obcrecording_actors_characters.json
+│   ├── instruments.json
+│   ├── media-formats.json
+│   ├── mtv_day_one.json
+│   ├── rock_hall_of_fame.json
+│   └── xxl_freshman.json
+├── mythology
+│   ├── egyptian_gods.json
+│   ├── greek_gods.json
+│   ├── greek_monsters.json
+│   ├── greek_myths_master.json
+│   ├── greek_titans.json
+│   ├── hebrew_god.json
+│   ├── lovecraft.json
+│   ├── monsters.json
+│   ├── norse_gods.json
+│   └── roman_deities.json
+├── objects
+│   ├── clothing.json
+│   ├── containers.json
+│   ├── corpora_winners.json
+│   ├── objects.json
+│   └── premodern_weapons.json
+├── plants
+│   ├── cannabis.json
+│   ├── flowers.json
+│   ├── plants.json
+│   └── toxic_plants.json
+├── psychology
+│   └── personality_test.json
+├── religion
+│   ├── christian_saints.json
+│   ├── fictional_religions.json
+│   ├── parody_religions.json
+│   └── religions.json
+├── science
+│   ├── elements.json
+│   ├── hail_size.json
+│   ├── meteorology.json
+│   ├── minor_planets.json
+│   ├── planets.json
+│   ├── pregnancy.json
+│   ├── toxic_chemicals.json
+│   └── weather_conditions.json
+├── societies_and_groups
+│   ├── animal_welfare.json
+│   ├── designated_terrorist_groups
+│   │   ├── australia.json
+│   │   ├── canada.json
+│   │   ├── china.json
+│   │   ├── egypt.json
+│   │   ├── european_union.json
+│   │   ├── india.json
+│   │   ├── iran.json
+│   │   ├── israel.json
+│   │   ├── kazakhstan.json
+│   │   ├── russia.json
+│   │   ├── saudi_arabia.json
+│   │   ├── tunisia.json
+│   │   ├── turkey.json
+│   │   ├── ukraine.json
+│   │   ├── united_arab_emirates.json
+│   │   ├── united_kingdom.json
+│   │   ├── united_nations.json
+│   │   └── united_states.json
+│   ├── fraternities
+│   │   ├── coeducational_fraternities.json
+│   │   ├── defunct.json
+│   │   ├── fraternities.json
+│   │   ├── professional.json
+│   │   ├── service.json
+│   │   └── sororities.json
+│   └── semi_secret.json
+├── sports
+│   ├── football
+│   │   ├── epl_teams.json
+│   │   ├── laliga_teams.json
+│   │   └── serieA.json
+│   ├── milb_teams.json
+│   ├── mlb_teams.json
+│   ├── nba_mvps.json
+│   ├── nba_teams.json
+│   ├── nfl_teams.json
+│   ├── nhl_teams.json
+│   ├── olympics.json
+│   └── sports.json
+├── technology
+│   ├── appliances.json
+│   ├── computer_sciences.json
+│   ├── fireworks.json
+│   ├── guns_n_rifles.json
+│   ├── knots.json
+│   ├── lisp.json
+│   ├── new_technologies.json
+│   ├── photo_sharing_websites.json
+│   ├── programming_languages_popular.json
+│   ├── programming_languages.json
+│   ├── social_networking_websites.json
+│   └── video_hosting_websites.json
+├── transportation
+│   ├── commercial-aircraft.json
+│   └── launchVehicleList.json
+├── travel
+│   └── lcc.json
+└── words
+    ├── adjs.json
+    ├── adverbs.json
+    ├── closed_pairs.json
+    ├── common.json
+    ├── compounds.json
+    ├── crash_blossoms.json
+    ├── eggcorns.json
+    ├── emoji
+    │   ├── codePage437.json
+    │   ├── cute_kaomoji.json
+    │   └── emoji.json
+    ├── encouraging_words.json
+    ├── ergative_verbs.json
+    ├── expletives.json
+    ├── harvard_sentences.json
+    ├── infinitive_verbs.json
+    ├── interjections.json
+    ├── literature
+    │   ├── infinitejest.json
+    │   ├── lovecraft_words.json
+    │   ├── mr_men_little_miss.json
+    │   ├── shakespeare_phrases.json
+    │   ├── shakespeare_sonnets.json
+    │   ├── shakespeare_words.json
+    │   └── technology_quotes.json
+    ├── nouns.json
+    ├── oprah_quotes.json
+    ├── personal_nouns.json
+    ├── personal_pronouns.json
+    ├── possessive_pronouns.json
+    ├── prefix_root_suffix.json
+    ├── prepositions.json
+    ├── proverbs.json
+    ├── resume_action_words.json
+    ├── rhymeless_words.json
+    ├── spells.json
+    ├── state_verbs.json
+    ├── states_of_drunkenness.json
+    ├── stopwords
+    │   ├── ar.json
+    │   ├── bg.json
+    │   ├── cs.json
+    │   ├── da.json
+    │   ├── de.json
+    │   ├── en.json
+    │   ├── es.json
+    │   ├── fi.json
+    │   ├── fr.json
+    │   ├── gr.json
+    │   ├── it.json
+    │   ├── jp.json
+    │   ├── lv.json
+    │   ├── nl.json
+    │   ├── no.json
+    │   ├── pl.json
+    │   ├── pt.json
+    │   ├── ru.json
+    │   ├── sk.json
+    │   ├── sv.json
+    │   └── tr.json
+    ├── strange_words.json
+    ├── ultraconserved.json
+    ├── units_of_time.json
+    ├── us_president_quotes.json
+    ├── verbs_with_conjugations.json
+    ├── verbs.json
+    └── word_clues
+        ├── clues_five.json
+        ├── clues_four.json
+        └── clues_six.json
+
+47 directories, 344 files
