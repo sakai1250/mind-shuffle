@@ -10,14 +10,25 @@ dependencies:
   flutter:
     sdk: flutter
   translator: ^1.0.0
-  flutter_tts: ^4.0.2      # ★★★ 新しい音声読み上げライブラリ ★★★
+  flutter_tts: ^4.0.2
 
 dev_dependencies:
   flutter_test:
     sdk: flutter
   flutter_lints: ^5.0.0
+  # アイコン生成用のパッケージ
+  flutter_launcher_icons: ^0.13.1
 
 flutter:
   uses-material-design: true
   assets:
     - assets/data/
+
+
+flutter_launcher_icons:
+  android: "launcher_icon"
+  ios: true
+  # ここに、ステップ1で配置したアイコン画像の正しいパスを記述します
+  image_path: "assets/icon/icon.png"
+  web:
+    generate: true
